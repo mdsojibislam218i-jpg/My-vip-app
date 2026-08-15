@@ -7,19 +7,27 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; }
         body { background: #0f172a; color: #fff; padding: 15px; }
-        .container { max-width: 800px; margin: 0 auto; }
+        .container { max-width: 1000px; margin: 0 auto; }
         
-        h1 { font-size: 20px; color: #38bdf8; text-align: center; margin-bottom: 20px; }
+        h1 { font-size: 22px; color: #38bdf8; text-align: center; margin-bottom: 20px; }
+        
+        /* Stats Cards Layout */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: #1e293b; padding: 15px; border-radius: 10px; border: 1px solid #334155; text-align: center; }
+        .stat-card h3 { font-size: 13px; color: #94a3b8; margin-bottom: 5px; }
+        .stat-card p { font-size: 20px; font-weight: bold; color: #38bdf8; }
+        .stat-card.green p { color: #10b981; }
+        .stat-card.orange p { color: #f59e0b; }
+
         .card { background: #1e293b; border-radius: 12px; padding: 15px; margin-bottom: 20px; border: 1px solid #334155; }
-        .card-title { font-size: 14px; font-weight: bold; color: #f59e0b; margin-bottom: 10px; border-bottom: 1px solid #334155; padding-bottom: 5px; }
+        .card-title { font-size: 15px; font-weight: bold; color: #f59e0b; margin-bottom: 12px; border-bottom: 1px solid #334155; padding-bottom: 5px; }
         
-        input, select { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #fff; margin-bottom: 10px; font-size: 13px; }
-        button { background: #2563eb; color: #fff; border: none; padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; }
-        button.danger { background: #ef4444; }
+        input { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #fff; margin-bottom: 10px; font-size: 13px; }
+        button { background: #2563eb; color: #fff; border: none; padding: 10px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; }
         button.success { background: #10b981; }
 
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-        th, td { border: 1px solid #334155; padding: 8px; text-align: left; }
+        th, td { border: 1px solid #334155; padding: 10px; text-align: left; }
         th { background: #334155; color: #f8fafc; }
 
         .hidden { display: none !important; }
@@ -40,9 +48,29 @@
     <div id="adminDashboard" class="hidden">
         <h1>⚙️ VIP Gaming Admin Dashboard</h1>
 
+        <!-- Overview Dashboard Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>👥 মোট ইউজার</h3>
+                <p id="totalUsersCount">0</p>
+            </div>
+            <div class="stat-card orange">
+                <h3>🆕 আজকের নতুন ইউজার</h3>
+                <p id="todayUsersCount">0</p>
+            </div>
+            <div class="stat-card green">
+                <h3>💰 মোট জমা (Deposit)</h3>
+                <p id="totalDepositSum">৳ 0</p>
+            </div>
+            <div class="stat-card">
+                <h3>💸 মোট উত্তোলন (Withdraw)</h3>
+                <p id="totalWithdrawSum">৳ 0</p>
+            </div>
+        </div>
+
         <!-- Manual Balance Modify -->
         <div class="card">
-            <div class="card-title">💰 ম্যানুয়ালি ব্যালেন্স যোগ/বিয়োগ করুন</div>
+            <div class="card-title">💵 ম্যানুয়ালি ব্যালেন্স যোগ/বিয়োগ করুন</div>
             <div style="display: flex; gap: 10px;">
                 <input type="text" id="targetUserPhone" placeholder="ইউজারের মোবাইল নম্বর">
                 <input type="number" id="targetAmount" placeholder="টাকার পরিমাণ (+ বা -)">
@@ -52,16 +80,17 @@
 
         <!-- All Users List -->
         <div class="card">
-            <div class="card-title">👥 নিবন্ধিত সকল ইউজারের তথ্য</div>
+            <div class="card-title">👥 নিবন্ধিত সকল ইউজারের তালিকা ও তথ্য</div>
             <div style="overflow-x: auto;">
                 <table>
                     <thead>
                         <tr>
                             <th>নাম</th>
                             <th>মোবাইল</th>
-                            <th>ব্যালেন্স</th>
-                            <th>টার্নওভার (সম্পন্ন / টার্গেট)</th>
+                            <th>বর্তমান ব্যালেন্স</th>
+                            <th>মোট ডিপোজিট</th>
                             <th>উইথড্র নম্বর</th>
+                            <th>রেজিস্ট্রেশনের তারিখ</th>
                         </tr>
                     </thead>
                     <tbody id="usersTableBody">
@@ -93,43 +122,72 @@
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
 
-    const SECRET_ADMIN_PASS = "admin123"; // এডমিন পাসওয়ার্ড
+    const SECRET_ADMIN_PASS = "admin123";
 
     function loginAdmin() {
         let pass = document.getElementById('adminPass').value.trim();
         if (pass === SECRET_ADMIN_PASS) {
             document.getElementById('adminAuth').classList.add('hidden');
             document.getElementById('adminDashboard').classList.remove('hidden');
-            loadAllUsers();
+            loadDashboardData();
         } else {
             alert('❌ ভুল পাসওয়ার্ড!');
         }
     }
 
-    function loadAllUsers() {
+    function loadDashboardData() {
         database.ref('users').on('value', snapshot => {
             let users = snapshot.val();
             let tbody = document.getElementById('usersTableBody');
             tbody.innerHTML = '';
 
             if(!users) {
-                tbody.innerHTML = '<tr><td colspan="5">কোনো ইউজার পাওয়া যায়নি</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6">কোনো ইউজার পাওয়া যায়নি</td></tr>';
                 return;
             }
 
+            let totalUsers = 0;
+            let todayUsers = 0;
+            let totalDeposit = 0;
+            let totalWithdraw = 0;
+
+            let todayDate = new Date().toLocaleDateString();
+
             for(let phone in users) {
                 let u = users[phone];
+                totalUsers++;
+
+                // Date check for new users
+                let userRegDate = u.joinedDate ? new Date(u.joinedDate).toLocaleDateString() : '';
+                if(userRegDate === todayDate) {
+                    todayUsers++;
+                }
+
+                // Balance & Deposit calculations
+                let userDeposit = parseFloat(u.totalDeposit || 0);
+                let userWithdraw = parseFloat(u.totalWithdraw || 0);
+                totalDeposit += userDeposit;
+                totalWithdraw += userWithdraw;
+
                 let acc = u.withdrawAccount ? `${u.withdrawAccount.method}: ${u.withdrawAccount.number}` : 'নেই';
+                let regDateFormatted = u.joinedDate ? new Date(u.joinedDate).toLocaleDateString('bn-BD') : 'অজানা';
                 
                 let tr = `<tr>
                     <td>${u.name || '-'}</td>
                     <td>${u.phone}</td>
                     <td>৳ ${parseFloat(u.balance || 0).toFixed(2)}</td>
-                    <td>৳ ${u.turnoverDone || 0} / ৳ ${u.turnoverTarget || 0}</td>
+                    <td>৳ ${userDeposit.toFixed(2)}</td>
                     <td>${acc}</td>
+                    <td>${regDateFormatted}</td>
                 </tr>`;
                 tbody.innerHTML += tr;
             }
+
+            // Update Header Stats
+            document.getElementById('totalUsersCount').innerText = totalUsers;
+            document.getElementById('todayUsersCount').innerText = todayUsers;
+            document.getElementById('totalDepositSum').innerText = `৳ ${totalDeposit.toFixed(2)}`;
+            document.getElementById('totalWithdrawSum').innerText = `৳ ${totalWithdraw.toFixed(2)}`;
         });
     }
 
@@ -146,8 +204,14 @@
             if(snapshot.exists()) {
                 let u = snapshot.val();
                 u.balance = (u.balance || 0) + amt;
+                
+                // If adding balance manually, count it as deposit if positive
+                if(amt > 0) {
+                    u.totalDeposit = (u.totalDeposit || 0) + amt;
+                }
+
                 database.ref('users/' + phone).set(u);
-                alert(`🎉 ${phone} নম্বরে ৳${amt} ব্যালেন্স এডজাস্ট করা হয়েছে!`);
+                alert(`🎉 ${phone} নম্বরে ৳${amt} ব্যালেন্স আপডেট করা হয়েছে!`);
                 document.getElementById('targetUserPhone').value = '';
                 document.getElementById('targetAmount').value = '';
             } else {
