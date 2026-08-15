@@ -12,19 +12,21 @@
         h1 { font-size: 22px; color: #38bdf8; text-align: center; margin-bottom: 20px; }
         
         /* Stats Cards Layout */
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
         .stat-card { background: #1e293b; padding: 15px; border-radius: 10px; border: 1px solid #334155; text-align: center; }
         .stat-card h3 { font-size: 13px; color: #94a3b8; margin-bottom: 5px; }
         .stat-card p { font-size: 20px; font-weight: bold; color: #38bdf8; }
         .stat-card.green p { color: #10b981; }
         .stat-card.orange p { color: #f59e0b; }
+        .stat-card.red p { color: #ef4444; }
 
         .card { background: #1e293b; border-radius: 12px; padding: 15px; margin-bottom: 20px; border: 1px solid #334155; }
         .card-title { font-size: 15px; font-weight: bold; color: #f59e0b; margin-bottom: 12px; border-bottom: 1px solid #334155; padding-bottom: 5px; }
         
         input { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #fff; margin-bottom: 10px; font-size: 13px; }
-        button { background: #2563eb; color: #fff; border: none; padding: 10px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; }
+        button { background: #2563eb; color: #fff; border: none; padding: 8px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; }
         button.success { background: #10b981; }
+        button.danger { background: #ef4444; }
 
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
         th, td { border: 1px solid #334155; padding: 10px; text-align: left; }
@@ -65,6 +67,59 @@
             <div class="stat-card">
                 <h3>💸 মোট উত্তোলন (Withdraw)</h3>
                 <p id="totalWithdrawSum">৳ 0</p>
+            </div>
+            <div class="stat-card orange">
+                <h3>📥 পেন্ডিং ডিপোজিট</h3>
+                <p id="pendingDepCount">0</p>
+            </div>
+            <div class="stat-card red">
+                <h3>📤 পেন্ডিং উইথড্র</h3>
+                <p id="pendingWithCount">0</p>
+            </div>
+        </div>
+
+        <!-- 📥 Live Pending Deposits Section -->
+        <div class="card">
+            <div class="card-title">📥 পেন্ডিং ডিপোজিট রিকোয়েস্ট (Deposit Requests)</div>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ইউজার নম্বর</th>
+                            <th>মেথড</th>
+                            <th>পরিমাণ</th>
+                            <th>প্রেরকের নম্বর</th>
+                            <th>TrxID</th>
+                            <th>সময়</th>
+                            <th>অ্যাকশন</th>
+                        </tr>
+                    </thead>
+                    <tbody id="depositTableBody">
+                        <!-- Dynamic Pending Deposits -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 📤 Live Pending Withdraws Section -->
+        <div class="card">
+            <div class="card-title">📤 পেন্ডিং উইথড্র রিকোয়েস্ট (Withdraw Requests)</div>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ইউজার নম্বর</th>
+                            <th>মেথড</th>
+                            <th>পরিমাণ</th>
+                            <th>উইথড্র নম্বর</th>
+                            <th>সময়</th>
+                            <th>অ্যাকশন</th>
+                        </tr>
+                    </thead>
+                    <tbody id="withdrawTableBody">
+                        <!-- Dynamic Pending Withdraws -->
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -136,6 +191,7 @@
     }
 
     function loadDashboardData() {
+        // 1. Users & Stats Listener
         database.ref('users').on('value', snapshot => {
             let users = snapshot.val();
             let tbody = document.getElementById('usersTableBody');
@@ -157,13 +213,11 @@
                 let u = users[phone];
                 totalUsers++;
 
-                // Date check for new users
                 let userRegDate = u.joinedDate ? new Date(u.joinedDate).toLocaleDateString() : '';
                 if(userRegDate === todayDate) {
                     todayUsers++;
                 }
 
-                // Balance & Deposit calculations
                 let userDeposit = parseFloat(u.totalDeposit || 0);
                 let userWithdraw = parseFloat(u.totalWithdraw || 0);
                 totalDeposit += userDeposit;
@@ -183,12 +237,99 @@
                 tbody.innerHTML += tr;
             }
 
-            // Update Header Stats
             document.getElementById('totalUsersCount').innerText = totalUsers;
             document.getElementById('todayUsersCount').innerText = todayUsers;
             document.getElementById('totalDepositSum').innerText = `৳ ${totalDeposit.toFixed(2)}`;
             document.getElementById('totalWithdrawSum').innerText = `৳ ${totalWithdraw.toFixed(2)}`;
         });
+
+        // 2. Pending Deposits Listener
+        database.ref('deposits').on('value', snap => {
+            let deps = snap.val() || {};
+            let tbody = document.getElementById('depositTableBody');
+            tbody.innerHTML = '';
+            let pCount = 0;
+
+            for(let id in deps) {
+                let d = deps[id];
+                if(d.status === 'pending') {
+                    pCount++;
+                    tbody.innerHTML += `<tr>
+                        <td>${d.userPhone}</td>
+                        <td>${d.method}</td>
+                        <td>৳ ${d.amount}</td>
+                        <td>${d.sender}</td>
+                        <td>${d.trx}</td>
+                        <td>${d.time}</td>
+                        <td>
+                            <button class="success" onclick="approveDeposit('${id}', '${d.userPhone}', ${d.amount})">Approve</button>
+                            <button class="danger" onclick="rejectDeposit('${id}')">Reject</button>
+                        </td>
+                    </tr>`;
+                }
+            }
+            if(pCount === 0) tbody.innerHTML = '<tr><td colspan="7">কোনো পেন্ডিং ডিপোজিট নেই</td></tr>';
+            document.getElementById('pendingDepCount').innerText = pCount;
+        });
+
+        // 3. Pending Withdraws Listener
+        database.ref('withdraws').on('value', snap => {
+            let withs = snap.val() || {};
+            let tbody = document.getElementById('withdrawTableBody');
+            tbody.innerHTML = '';
+            let pCount = 0;
+
+            for(let id in withs) {
+                let w = withs[id];
+                if(w.status === 'pending') {
+                    pCount++;
+                    tbody.innerHTML += `<tr>
+                        <td>${w.userPhone}</td>
+                        <td>${w.method}</td>
+                        <td>৳ ${w.amount}</td>
+                        <td>${w.number}</td>
+                        <td>${w.time}</td>
+                        <td>
+                            <button class="success" onclick="approveWithdraw('${id}', '${w.userPhone}', ${w.amount})">Paid</button>
+                            <button class="danger" onclick="rejectWithdraw('${id}')">Reject</button>
+                        </td>
+                    </tr>`;
+                }
+            }
+            if(pCount === 0) tbody.innerHTML = '<tr><td colspan="6">কোনো পেন্ডিং উইথড্র নেই</td></tr>';
+            document.getElementById('pendingWithCount').innerText = pCount;
+        });
+    }
+
+    function approveDeposit(reqId, phone, amount) {
+        database.ref('users/' + phone).once('value', snap => {
+            let u = snap.val();
+            let newBal = (u.balance || 0) + amount;
+            let newDep = (u.totalDeposit || 0) + amount;
+
+            database.ref('users/' + phone).update({ balance: newBal, totalDeposit: newDep });
+            database.ref('deposits/' + reqId).update({ status: 'approved' });
+            alert(`✅ ${phone} নম্বরে ৳${amount} অটোমেটিক যোগ করা হয়েছে!`);
+        });
+    }
+
+    function rejectDeposit(reqId) {
+        database.ref('deposits/' + reqId).update({ status: 'rejected' });
+    }
+
+    function approveWithdraw(reqId, phone, amount) {
+        database.ref('users/' + phone).once('value', snap => {
+            let u = snap.val();
+            let newBal = (u.balance || 0) - amount;
+
+            database.ref('users/' + phone).update({ balance: newBal });
+            database.ref('withdraws/' + reqId).update({ status: 'approved' });
+            alert(`✅ ${phone} এর উইথড্র সফল চিহ্নিত করা হলো এবং ব্যালেন্স কাটা হয়েছে!`);
+        });
+    }
+
+    function rejectWithdraw(reqId) {
+        database.ref('withdraws/' + reqId).update({ status: 'rejected' });
     }
 
     function updateUserBalance() {
@@ -204,11 +345,7 @@
             if(snapshot.exists()) {
                 let u = snapshot.val();
                 u.balance = (u.balance || 0) + amt;
-                
-                // If adding balance manually, count it as deposit if positive
-                if(amt > 0) {
-                    u.totalDeposit = (u.totalDeposit || 0) + amt;
-                }
+                if(amt > 0) u.totalDeposit = (u.totalDeposit || 0) + amt;
 
                 database.ref('users/' + phone).set(u);
                 alert(`🎉 ${phone} নম্বরে ৳${amt} ব্যালেন্স আপডেট করা হয়েছে!`);
