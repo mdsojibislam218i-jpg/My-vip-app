@@ -31,6 +31,8 @@
         .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 15px; }
         .grid-4 button { padding: 8px 4px; font-size: 11px; }
 
+        .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 10px; }
+
         /* Balance Card */
         .balance-box { background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid #38bdf8; border-radius: 12px; padding: 15px; text-align: center; margin-bottom: 15px; }
         .bal-val { font-size: 22px; font-weight: bold; color: #10b981; margin: 5px 0; }
@@ -47,6 +49,14 @@
         .chat-msg { margin-bottom: 8px; padding: 6px 10px; border-radius: 6px; max-width: 80%; }
         .user-msg { background: #2563eb; margin-left: auto; text-align: right; }
         .ai-msg { background: #334155; color: #f8fafc; }
+
+        /* Card Games Style */
+        .game-card-container { display: flex; justify-content: center; align-items: center; margin: 15px 0; }
+        .playing-card { width: 90px; height: 130px; background: #fff; color: #000; border-radius: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 32px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.5); border: 2px solid #38bdf8; }
+        .playing-card.red { color: #ef4444; }
+        .game-banner { background: linear-gradient(135deg, #4f46e5, #9333ea); padding: 12px; border-radius: 10px; text-align: center; margin-bottom: 12px; cursor: pointer; border: 1px solid #a855f7; }
+        .game-banner h4 { font-size: 16px; font-weight: bold; color: #fff; }
+        .game-banner p { font-size: 11px; color: #e2e8f0; margin-top: 2px; }
     </style>
 </head>
 <body>
@@ -121,12 +131,71 @@
                 <button class="warning" onclick="submitWithdraw()">উইথড্র রিকোয়েস্ট পাঠান</button>
             </div>
 
+            <!-- 🃏 CARD GAMES ARENA -->
+            <div class="card">
+                <div class="card-title">🃏 VIP CARD GAMES ARENA</div>
+                
+                <div class="game-banner" onclick="switchTab('pageSuperAce')">
+                    <h4>🔥 Super Ace (সুপার এসি)</h4>
+                    <p>Red / Black কালার প্রেডিক্ট করে জিতুন 2x রিওয়ার্ড!</p>
+                </div>
+
+                <div class="game-banner" style="background: linear-gradient(135deg, #059669, #0d9488); border-color:#10b981;" onclick="switchTab('pageSuperAceDeluxe')">
+                    <h4>✨ Super Ace Deluxe (সুপার এসি ডিলাক্স)</h4>
+                    <p>সঠিক Card Suit প্রেডিক্ট করে জিতুন 4x মেগা রিওয়ার্ড!</p>
+                </div>
+            </div>
+
             <!-- Level & Overview Widget -->
             <div class="card">
                 <div class="card-title">🏆 Level & Progress Overview</div>
                 <p style="font-size: 12px;">Current Level: <b id="dispLevel" style="color:#f59e0b;">0</b></p>
                 <p style="font-size: 12px; margin-top: 5px;">Required Turnover: ৳<b id="dispTurnoverReq">0.00</b></p>
                 <p style="font-size: 12px; margin-top: 5px;">Completed Turnover: ৳<b id="dispTurnoverComp" style="color:#10b981;">0.00</b></p>
+            </div>
+        </div>
+
+        <!-- ♠️ 1.1 SUPER ACE GAME PAGE -->
+        <div id="pageSuperAce" class="container page-section hidden">
+            <button style="background:#475569; margin-bottom:12px; width:auto; padding:6px 12px;" onclick="switchTab('pageHome')">⬅️ Back to Home</button>
+            
+            <div class="card" style="text-align:center;">
+                <div class="card-title">🔥 Super Ace (2x Win Payout)</div>
+                
+                <div class="game-card-container">
+                    <div class="playing-card" id="saCard">❓</div>
+                </div>
+                <div id="saResultMsg" style="font-size:13px; font-weight:bold; margin-bottom:10px; color:#f59e0b;">কালার নির্বাচন করে প্লে বাটনে চাপুন!</div>
+
+                <input type="number" id="saBetAmount" placeholder="বাজির পরিমাণ (৳১০ - ৳৫,০০০)">
+
+                <div class="grid-2">
+                    <button style="background:#ef4444;" onclick="playSuperAce('red')">🔴 Red (2x)</button>
+                    <button style="background:#1e293b; border:1px solid #fff;" onclick="playSuperAce('black')">⚫ Black (2x)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 👑 1.2 SUPER ACE DELUXE GAME PAGE -->
+        <div id="pageSuperAceDeluxe" class="container page-section hidden">
+            <button style="background:#475569; margin-bottom:12px; width:auto; padding:6px 12px;" onclick="switchTab('pageHome')">⬅️ Back to Home</button>
+            
+            <div class="card" style="text-align:center;">
+                <div class="card-title">✨ Super Ace Deluxe (4x Win Payout)</div>
+                
+                <div class="game-card-container">
+                    <div class="playing-card" id="sadCard">❓</div>
+                </div>
+                <div id="sadResultMsg" style="font-size:13px; font-weight:bold; margin-bottom:10px; color:#10b981;">সঠিক চিহ্ন সিলেক্ট করে বাজি ধরুন!</div>
+
+                <input type="number" id="sadBetAmount" placeholder="বাজির পরিমাণ (৳১০ - ৳৫,০০০)">
+
+                <div class="grid-2">
+                    <button style="background:#3b82f6;" onclick="playSuperAceDeluxe('♠️')">♠️ Spades (4x)</button>
+                    <button style="background:#ef4444;" onclick="playSuperAceDeluxe('♥️')">♥️ Hearts (4x)</button>
+                    <button style="background:#f59e0b;" onclick="playSuperAceDeluxe('♦️')">♦️ Diamonds (4x)</button>
+                    <button style="background:#10b981;" onclick="playSuperAceDeluxe('♣️')">♣️ Clubs (4x)</button>
+                </div>
             </div>
         </div>
 
@@ -220,6 +289,7 @@
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
     let currentUser = null;
+    let currentUserData = null;
 
     // Navigation Switcher
     function switchTab(pageId, element) {
@@ -238,7 +308,7 @@
         document.getElementById(subId).classList.remove('hidden');
     }
 
-    // User Registration with SQL Table Structure Synchronization
+    // User Registration
     function registerUser() {
         let name = document.getElementById('uName').value.trim();
         let phone = document.getElementById('uPhone').value.trim();
@@ -253,12 +323,11 @@
             } else {
                 let generatedRefId = 'REF' + Math.floor(10000 + Math.random() * 90000);
                 
-                // Matches MySQL Users Table Exactly
                 let userData = {
                     name: name,
                     mobile_number: phone,
-                    password_hash: pass, // In production, hash this server-side
-                    withdrawal_pin_hash: '123456', // Default 6-Digit PIN
+                    password_hash: pass,
+                    withdrawal_pin_hash: '123456',
                     referral_id: generatedRefId,
                     referred_by_user_id: refBy || null,
                     available_balance: 0.00,
@@ -304,7 +373,8 @@
     // Real-time Database Observer
     function listenUserData() {
         database.ref('users/' + currentUser).on('value', snap => {
-            let data = snap.val();
+            currentUserData = snap.val();
+            let data = currentUserData;
             let reqTurnover = parseFloat(data.turnover_required || 0);
             let compTurnover = parseFloat(data.turnover_completed || 0);
             let remTurnover = Math.max(0, reqTurnover - compTurnover);
@@ -317,13 +387,96 @@
             document.getElementById('dispTurnoverComp').innerText = compTurnover.toFixed(2);
             document.getElementById('dispLevel').innerText = data.current_level || 0;
             
-            // Profile & Referral Section Update
             document.getElementById('profName').innerText = data.name || '-';
             document.getElementById('profPhone').innerText = data.mobile_number || '-';
             document.getElementById('profStatus').innerText = data.account_status || 'active';
             document.getElementById('refIdDisp').innerText = data.referral_id || 'N/A';
             document.getElementById('refLinkInput').value = `https://app.link/register?ref=${data.referral_id}`;
             document.getElementById('refCount').innerText = data.total_referrals || 0;
+        });
+    }
+
+    // 🔴 🎮 SUPER ACE GAME ENGINE (2x Payout)
+    function playSuperAce(userChoice) {
+        let bet = parseFloat(document.getElementById('saBetAmount').value);
+        let currBal = parseFloat(currentUserData.available_balance || 0);
+        let currTurnover = parseFloat(currentUserData.turnover_completed || 0);
+
+        if(!bet || bet < 10) return alert('কমপক্ষে ৳১০ বাজি ধরুন!');
+        if(bet > currBal) return alert('❌ পর্যাপ্ত ব্যালেন্স নেই!');
+
+        const cards = [
+            { icon: '♥️ A', color: 'red' }, { icon: '♦️ K', color: 'red' }, { icon: '♥️ Q', color: 'red' }, { icon: '♦️ J', color: 'red' },
+            { icon: '♠️ A', color: 'black' }, { icon: '♣️ K', color: 'black' }, { icon: '♠️ Q', color: 'black' }, { icon: '♣️ J', color: 'black' }
+        ];
+
+        let drawnCard = cards[Math.floor(Math.random() * cards.length)];
+        let cardElem = document.getElementById('saCard');
+        let msgElem = document.getElementById('saResultMsg');
+
+        cardElem.innerText = drawnCard.icon;
+        cardElem.className = 'playing-card ' + (drawnCard.color === 'red' ? 'red' : '');
+
+        let newBal = currBal - bet;
+        let newTurnover = currTurnover + bet;
+
+        if(drawnCard.color === userChoice) {
+            let winAmount = bet * 2;
+            newBal += winAmount;
+            msgElem.innerText = `🎉 অভিনন্দন! আপনি ৳${winAmount} টাকা জিতেছেন!`;
+            msgElem.style.color = '#10b981';
+        } else {
+            msgElem.innerText = `💔 দুর্ভাগ্য! আপনি ৳${bet} টাকা হেরে গেছেন।`;
+            msgElem.style.color = '#ef4444';
+        }
+
+        // Database Balance Update
+        database.ref('users/' + currentUser).update({
+            available_balance: newBal,
+            turnover_completed: newTurnover
+        });
+    }
+
+    // 👑 🎮 SUPER ACE DELUXE GAME ENGINE (4x Payout)
+    function playSuperAceDeluxe(userSuit) {
+        let bet = parseFloat(document.getElementById('sadBetAmount').value);
+        let currBal = parseFloat(currentUserData.available_balance || 0);
+        let currTurnover = parseFloat(currentUserData.turnover_completed || 0);
+
+        if(!bet || bet < 10) return alert('কমপক্ষে ৳১০ বাজি ধরুন!');
+        if(bet > currBal) return alert('❌ পর্যাপ্ত ব্যালেন্স নেই!');
+
+        const suits = [
+            { icon: '♠️', isRed: false },
+            { icon: '♥️', isRed: true },
+            { icon: '♦️', isRed: true },
+            { icon: '♣️', isRed: false }
+        ];
+
+        let drawnSuit = suits[Math.floor(Math.random() * suits.length)];
+        let cardElem = document.getElementById('sadCard');
+        let msgElem = document.getElementById('sadResultMsg');
+
+        cardElem.innerText = drawnSuit.icon + ' A';
+        cardElem.className = 'playing-card ' + (drawnSuit.isRed ? 'red' : '');
+
+        let newBal = currBal - bet;
+        let newTurnover = currTurnover + bet;
+
+        if(drawnSuit.icon === userSuit) {
+            let winAmount = bet * 4;
+            newBal += winAmount;
+            msgElem.innerText = `🔥 মেগা উইন! আপনি ৳${winAmount} টাকা জিতেছেন (4x)!`;
+            msgElem.style.color = '#10b981';
+        } else {
+            msgElem.innerText = `💔 দুঃখিত! আপনি ৳${bet} টাকা হেরে গেছেন।`;
+            msgElem.style.color = '#ef4444';
+        }
+
+        // Database Balance Update
+        database.ref('users/' + currentUser).update({
+            available_balance: newBal,
+            turnover_completed: newTurnover
         });
     }
 
