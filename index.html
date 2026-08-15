@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIP Gaming App</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; }
+        body { background: #0f172a; color: #fff; display: flex; justify-content: center; padding: 10px; }
+        .mobile-frame { width: 100%; max-width: 400px; background: #1e293b; border-radius: 16px; min-height: 90vh; padding: 15px; border: 1px solid #334155; }
+        
+        .header { text-align: center; font-size: 20px; font-weight: bold; color: #38bdf8; margin-bottom: 15px; }
+        .card { background: #0f172a; padding: 15px; border-radius: 10px; border: 1px solid #334155; margin-bottom: 15px; }
+        
+        input, select { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #475569; background: #1e293b; color: #fff; margin-bottom: 10px; font-size: 13px; }
+        button { width: 100%; background: #2563eb; color: #fff; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        button.success { background: #10b981; }
+        button.warning { background: #f59e0b; }
+        
+        .hidden { display: none !important; }
+        .nav-btns { display: flex; gap: 10px; margin-bottom: 15px; }
+        .nav-btns button { flex: 1; font-size: 12px; }
+        .notice { background: #334155; padding: 8px; border-radius: 6px; font-size: 12px; color: #f59e0b; margin-bottom: 10px; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="mobile-frame">
+    <div class="header">👑 VIP Gaming App</div>
+
+    <!-- Auth Section -->
+    <div id="authSection" class="card">
+        <h3 style="margin-bottom:10px; text-align:center;">লগইন / রেজিস্ট্রেশন</h3>
+        <input type="text" id="uPhone" placeholder="মোবাইল নম্বর">
+        <input type="password" id="uPass" placeholder="পাসওয়ার্ড">
+        <button onclick="loginUser()">লগইন করুন</button>
+        <button onclick="registerUser()" style="margin-top:8px; background:#475569;">নতুন একাউন্ট খুলুন</button>
+    </div>
+
+    <!-- User Dashboard -->
+    <div id="userDashboard" class="hidden">
+        <div class="card">
+            <p>স্বাগতম, <b id="dispPhone"></b></p>
+            <h2 style="color:#10b981; margin-top:5px;">ব্যালেন্স: ৳ <span id="dispBalance">0.00</span></h2>
+        </div>
+
+        <div class="nav-btns">
+            <button class="success" onclick="showTab('depositTab')">📥 ডিপোজিট</button>
+            <button class="warning" onclick="showTab('withdrawTab')">📤 উইথড্র</button>
+        </div>
+
+        <!-- Deposit Form -->
+        <div id="depositTab" class="card hidden">
+            <h3>📥 টাকা জমা (Deposit) করুন</h3>
+            <div class="notice">বিকাশ/নগদ পার্সোনাল: <b>01700000000</b> (Send Money)</div>
+            <select id="depMethod">
+                <option value="bKash">bKash (বিকাশ)</option>
+                <option value="Nagad">Nagad (নগদ)</option>
+            </select>
+            <input type="number" id="depAmount" placeholder="টাকার পরিমাণ (নূন্যতম ১০০)">
+            <input type="text" id="depSender" placeholder="যে নম্বর থেকে টাকা পাঠিয়েছেন">
+            <input type="text" id="depTrx" placeholder="Transaction ID (TrxID)">
+            <button class="success" onclick="submitDeposit()">রিকোয়েস্ট পাঠান</button>
+        </div>
+
+        <!-- Withdraw Form -->
+        <div id="withdrawTab" class="card hidden">
+            <h3>📤 টাকা উত্তোলন (Withdraw)</h3>
+            <select id="wMethod">
+                <option value="bKash">bKash (বিকাশ)</option>
+                <option value="Nagad">Nagad (নগদ)</option>
+            </select>
+            <input type="number" id="wAmount" placeholder="টাকার পরিমাণ">
+            <input type="text" id="wNumber" placeholder="আপনার বিকাশ/নগদ নম্বর">
+            <button class="warning" onclick="submitWithdraw()">উইথড্র রিকোয়েস্ট পাঠান</button>
+        </div>
+    </div>
+</div>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+
+<script>
+    // ফায়ারবেস কনফিগারেশন
+    const firebaseConfig = {
+        apiKey: "AIzaSyDlmi7Gs0G7MnOtQXBmpI8TxBs1CfjhlUo",
+        authDomain: "g6bdwin.firebaseapp.com",
+        databaseURL: "https://g6bdwin-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "g6bdwin",
+        storageBucket: "g6bdwin.firebasestorage.app",
+        messagingSenderId: "872964112407",
+        appId: "1:872964112407:android:64a5e002b09872688a1c52"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    let currentUser = null;
+
+    // রেজিস্ট্রেশন ফাংশন
+    function registerUser() {
+        let phone = document.getElementById('uPhone').value.trim();
+        let pass = document.getElementById('uPass').value.trim();
+        if(!phone || !pass) return alert('সব তথ্য পূরণ করুন');
+
+        database.ref('users/' + phone).once('value', snap => {
+            if(snap.exists()) {
+                alert('এই নম্বরে ইতিমধ্যে একাউন্ট আছে!');
+            } else {
+                let userData = {
+                    phone: phone,
+                    pass: pass,
+                    balance: 0,
+                    totalDeposit: 0,
+                    joinedDate: new Date().toISOString()
+                };
+                database.ref('users/' + phone).set(userData);
+                alert('🎉 রেজিস্ট্রেশন সফল হয়েছে! এখন লগইন করুন।');
+            }
+        });
+    }
+
+    // লগইন ফাংশন
+    function loginUser() {
+        let phone = document.getElementById('uPhone').value.trim();
+        let pass = document.getElementById('uPass').value.trim();
+
+        database.ref('users/' + phone).once('value', snap => {
+            if(snap.exists() && snap.val().pass === pass) {
+                currentUser = phone;
+                document.getElementById('authSection').classList.add('hidden');
+                document.getElementById('userDashboard').classList.remove('hidden');
+                listenUserData();
+            } else {
+                alert('❌ ভুল ফোন নম্বর বা পাসওয়ার্ড!');
+            }
+        });
+    }
+
+    // রিয়েল-টাইম ইউজারের তথ্য ও ব্যালেন্স লোড
+    function listenUserData() {
+        database.ref('users/' + currentUser).on('value', snap => {
+            let data = snap.val();
+            document.getElementById('dispPhone').innerText = data.phone;
+            document.getElementById('dispBalance').innerText = parseFloat(data.balance || 0).toFixed(2);
+        });
+    }
+
+    // ট্যাব পরিবর্তনের ফাংশন
+    function showTab(tabId) {
+        document.getElementById('depositTab').classList.add('hidden');
+        document.getElementById('withdrawTab').classList.add('hidden');
+        document.getElementById(tabId).classList.remove('hidden');
+    }
+
+    // নতুন ডিপোজিট রিকোয়েস্ট ফাংশন (লাইভ ফায়ারবেসে ডাটা পাঠায়)
+    function submitDeposit() {
+        let method = document.getElementById('depMethod').value;
+        let amount = parseFloat(document.getElementById('depAmount').value);
+        let sender = document.getElementById('depSender').value.trim();
+        let trx = document.getElementById('depTrx').value.trim();
+
+        if(!amount || amount < 100 || !sender || !trx) {
+            return alert('সব তথ্য সঠিকভাবে দিন (নূন্যতম ১০০ টাকা)');
+        }
+
+        let reqId = Date.now();
+        database.ref('deposits/' + reqId).set({
+            id: reqId,
+            userPhone: currentUser,
+            method: method,
+            amount: amount,
+            sender: sender,
+            trx: trx,
+            status: 'pending',
+            time: new Date().toLocaleString('bn-BD')
+        }).then(() => {
+            alert('✅ ডিপোজিট রিকোয়েস্ট পাঠানো হয়েছে! অ্যাডমিন ভেরিফাই করে অ্যাপ্রুভ করবে।');
+            document.getElementById('depAmount').value = '';
+            document.getElementById('depSender').value = '';
+            document.getElementById('depTrx').value = '';
+        });
+    }
+
+    // নতুন উইথড্র রিকোয়েস্ট ফাংশন (লাইভ ফায়ারবেসে ডাটা পাঠায়)
+    function submitWithdraw() {
+        let method = document.getElementById('wMethod').value;
+        let amount = parseFloat(document.getElementById('wAmount').value);
+        let number = document.getElementById('wNumber').value.trim();
+
+        if(!amount || amount <= 0 || !number) return alert('সঠিক তথ্য দিন');
+
+        database.ref('users/' + currentUser).once('value', snap => {
+            let bal = snap.val().balance || 0;
+            if(bal < amount) {
+                return alert('❌ আপনার একাউন্টে পর্যাপ্ত ব্যালেন্স নেই!');
+            }
+
+            let reqId = Date.now();
+            database.ref('withdraws/' + reqId).set({
+                id: reqId,
+                userPhone: currentUser,
+                method: method,
+                amount: amount,
+                number: number,
+                status: 'pending',
+                time: new Date().toLocaleString('bn-BD')
+            }).then(() => {
+                alert('✅ উইথড্র রিকোয়েস্ট সফলভাবে জমা হয়েছে!');
+                document.getElementById('wAmount').value = '';
+                document.getElementById('wNumber').value = '';
+            });
+        });
+    }
+</script>
+</body>
+</html>
