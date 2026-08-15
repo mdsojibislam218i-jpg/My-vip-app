@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - VIP Gaming App</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; }
+        body { background: #0f172a; color: #fff; padding: 15px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        
+        h1 { font-size: 20px; color: #38bdf8; text-align: center; margin-bottom: 20px; }
+        .card { background: #1e293b; border-radius: 12px; padding: 15px; margin-bottom: 20px; border: 1px solid #334155; }
+        .card-title { font-size: 14px; font-weight: bold; color: #f59e0b; margin-bottom: 10px; border-bottom: 1px solid #334155; padding-bottom: 5px; }
+        
+        input, select { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #fff; margin-bottom: 10px; font-size: 13px; }
+        button { background: #2563eb; color: #fff; border: none; padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; }
+        button.danger { background: #ef4444; }
+        button.success { background: #10b981; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+        th, td { border: 1px solid #334155; padding: 8px; text-align: left; }
+        th { background: #334155; color: #f8fafc; }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- Login Screen -->
+    <div id="adminAuth" class="card" style="max-width: 400px; margin: 50px auto;">
+        <div class="card-title">🔐 Admin Login</div>
+        <input type="password" id="adminPass" placeholder="এডমিন পাসওয়ার্ড দিন">
+        <button onclick="loginAdmin()" style="width: 100%;">প্রবেশ করুন</button>
+    </div>
+
+    <!-- Dashboard Content -->
+    <div id="adminDashboard" class="hidden">
+        <h1>⚙️ VIP Gaming Admin Dashboard</h1>
+
+        <!-- Manual Balance Modify -->
+        <div class="card">
+            <div class="card-title">💰 ম্যানুয়ালি ব্যালেন্স যোগ/বিয়োগ করুন</div>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="targetUserPhone" placeholder="ইউজারের মোবাইল নম্বর">
+                <input type="number" id="targetAmount" placeholder="টাকার পরিমাণ (+ বা -)">
+            </div>
+            <button class="success" onclick="updateUserBalance()">ব্যালেন্স আপডেট করুন</button>
+        </div>
+
+        <!-- All Users List -->
+        <div class="card">
+            <div class="card-title">👥 নিবন্ধিত সকল ইউজারের তথ্য</div>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>নাম</th>
+                            <th>মোবাইল</th>
+                            <th>ব্যালেন্স</th>
+                            <th>টার্নওভার (সম্পন্ন / টার্গেট)</th>
+                            <th>উইথড্র নম্বর</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <!-- Dynamic content -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyDlmi7Gs0G7MnOtQXBmpI8TxBs1CfjhlUo",
+        authDomain: "g6bdwin.firebaseapp.com",
+        databaseURL: "https://g6bdwin-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "g6bdwin",
+        storageBucket: "g6bdwin.firebasestorage.app",
+        messagingSenderId: "872964112407",
+        appId: "1:872964112407:android:64a5e002b09872688a1c52"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    const SECRET_ADMIN_PASS = "admin123"; // এডমিন পাসওয়ার্ড
+
+    function loginAdmin() {
+        let pass = document.getElementById('adminPass').value.trim();
+        if (pass === SECRET_ADMIN_PASS) {
+            document.getElementById('adminAuth').classList.add('hidden');
+            document.getElementById('adminDashboard').classList.remove('hidden');
+            loadAllUsers();
+        } else {
+            alert('❌ ভুল পাসওয়ার্ড!');
+        }
+    }
+
+    function loadAllUsers() {
+        database.ref('users').on('value', snapshot => {
+            let users = snapshot.val();
+            let tbody = document.getElementById('usersTableBody');
+            tbody.innerHTML = '';
+
+            if(!users) {
+                tbody.innerHTML = '<tr><td colspan="5">কোনো ইউজার পাওয়া যায়নি</td></tr>';
+                return;
+            }
+
+            for(let phone in users) {
+                let u = users[phone];
+                let acc = u.withdrawAccount ? `${u.withdrawAccount.method}: ${u.withdrawAccount.number}` : 'নেই';
+                
+                let tr = `<tr>
+                    <td>${u.name || '-'}</td>
+                    <td>${u.phone}</td>
+                    <td>৳ ${parseFloat(u.balance || 0).toFixed(2)}</td>
+                    <td>৳ ${u.turnoverDone || 0} / ৳ ${u.turnoverTarget || 0}</td>
+                    <td>${acc}</td>
+                </tr>`;
+                tbody.innerHTML += tr;
+            }
+        });
+    }
+
+    function updateUserBalance() {
+        let phone = document.getElementById('targetUserPhone').value.trim();
+        let amt = parseFloat(document.getElementById('targetAmount').value);
+
+        if(!phone || isNaN(amt)) {
+            alert('ইউজারের নম্বর ও সঠিক পরিমাণ লিখুন!');
+            return;
+        }
+
+        database.ref('users/' + phone).once('value', snapshot => {
+            if(snapshot.exists()) {
+                let u = snapshot.val();
+                u.balance = (u.balance || 0) + amt;
+                database.ref('users/' + phone).set(u);
+                alert(`🎉 ${phone} নম্বরে ৳${amt} ব্যালেন্স এডজাস্ট করা হয়েছে!`);
+                document.getElementById('targetUserPhone').value = '';
+                document.getElementById('targetAmount').value = '';
+            } else {
+                alert('❌ এই নম্বরের কোনো ইউজার পাওয়া যায়নি!');
+            }
+        });
+    }
+</script>
+
+</body>
+</html>
