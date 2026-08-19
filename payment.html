@@ -1,0 +1,38 @@
+<!-- পেমেন্ট বাটন -->
+<button onclick="makePayment()">Pay Now</button>
+
+<script>
+function makePayment() {
+    // স্ক্রিনশটের Brand Key টি এখানে বসানো হয়েছে
+    const apiKey = "Arwj...1coS"; // তোমার পুরো Brand Key টি এখানে দাও
+
+    const paymentData = {
+        "cus_name": "Test User",
+        "cus_email": "user@example.com",
+        "amount": "100", // পেমেন্টের পরিমাণ (টাকায়)
+        "webhook_url": "https://mdsojibislam218jpg.github.io/webhook", 
+        "success_url": "https://mdsojibislam218jpg.github.io/success.html",
+        "cancel_url": "https://mdsojibislam218jpg.github.io/cancel.html"
+    };
+
+    fetch("https://paydeshipay.themedokan.com/api/payment/create", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "API-KEY": apiKey
+        },
+        body: JSON.stringify(paymentData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if(data.payment_url) {
+            // পেমেন্ট পেজে রিডাইরেক্ট করবে
+            window.location.href = data.payment_url;
+        } else {
+            alert("Payment error!");
+        }
+    })
+    .catch(error => console.error("Error:", error));
+}
+</script>
+
