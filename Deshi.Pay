@@ -1,0 +1,196 @@
+<?php
+/**
+ * Plugin Name: DeshiPay Payment Gateway for WooCommerce
+ * Description: High-converting payment gateway for DeshiPay. Designed by ThemeDokan.com.
+ * Version: 1.2.5
+ * Author: ThemeDokan.com
+ */
+
+if (!defined('ABSPATH')) exit;
+
+add_action('plugins_loaded', 'deshipay_gateway_init', 11);
+
+function deshipay_gateway_init() {
+    class WC_DeshiPay_Gateway extends WC_Payment_Gateway {
+        public function __construct() {
+            $this->id = 'deshipay';
+            $this->icon = plugins_url('images/deshipay_logo.png', __FILE__);
+            $this->has_fields = false;
+            $this->method_title = __('Deshi Pay', 'deshipay');
+            $this->method_description = __('Pay with DeshiPay Payment Gateway', 'deshipay');
+            $this->supports = array('products');
+            $this->init_form_fields();
+            $this->init_settings();
+            $this->title = $this->get_option('title');
+            $this->description = $this->get_option('description');
+            $this->enabled = $this->get_option('enabled');
+
+            add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
+            add_action('woocommerce_api_' . strtolower(get_class($this)), array($this, 'handle_webhook'));
+            add_action('wp_head', array($this, 'deshipay_custom_css'));
+        }
+
+        public function deshipay_custom_css() {
+            if ( is_checkout() ) {
+                echo '<style>
+                    li.payment_method_deshipay label img {
+                        max-width: 35px !important;
+                        height: auto !important;
+                        margin-left: 10px !important;
+                        display: inline-block !important;
+                        vertical-align: middle !important;
+                    }
+                </style>';
+            }
+        }
+
+        public function init_form_fields() {
+            $this->form_fields = array(
+                'enabled' => array(
+                    'title'   => 'Enable/Disable',
+                    'label'   => 'Enable DeshiPay',
+                    'type'    => 'checkbox',
+                    'default' => 'no'
+                ),
+                'title' => array(
+                    'title'       => 'Title',
+                    'type'        => 'text',
+                    'description' => 'User sees this during checkout.',
+                    'default'     => 'DeshiPay Gateway',
+                ),
+                'apikeys' => array(
+                    'title'       => 'API Key',
+                    'type'        => 'text',
+                    'default'     => '',
+                ),
+                'currency_rate' => array(
+                    'title'       => 'USD Rate',
+                    'type'        => 'number',
+                    'default'     => '115',
+                ),
+                'is_digital' => array(
+                    'title'   => 'Digital Product Order Status',
+                    'label'   => 'Set Completed for Digital Products',
+                    'type'    => 'checkbox',
+                    'default' => 'no'
+                ),
+                'payment_site' => array(
+                    'title'       => 'Payment Site URL',
+                    'type'        => 'text',
+                    'default'     => 'https://paydeshipay.themedokan.com/',
+                    'custom_attributes' => array('readonly' => 'readonly'),
+                ),
+            );
+        }
+
+        public function process_payment($order_id) {
+            $order = wc_get_order($order_id);
+            $current_user = wp_get_current_user();
+            
+            $total = $order->get_total();
+            if ($order->get_currency() == 'USD') {
+                $total = $total * floatval($this->get_option('currency_rate'));
+            }
+            if ($order->get_status() != 'completed') {
+                $order->update_status('pending', __('Customer redirected to DeshiPay', 'deshipay'));
+            }
+
+            $data = array(
+                "cus_name"    => $current_user->display_name ? $current_user->display_name : $order->get_billing_first_name(),
+                "cus_email"   => $order->get_billing_email(),
+                "amount"      => $total,
+                "webhook_url" => site_url('/?wc-api=wc_deshipay_gateway&order_id=' . $order_id),
+                "success_url" => $this->get_return_url($order),
+                "cancel_url"  => wc_get_checkout_url()
+            );
+
+            $header = array(
+                "api" => $this->get_option('apikeys'),
+                "url" => trailingslashit($this->get_option('payment_site')) . "api/payment/create"
+            );
+
+            $response = $this->remote_api_request($data, $header);
+            $result = json_decode($response, true);
+
+            if (isset($result['payment_url'])) {
+                return array(
+                    'result'   => 'success',
+                    'redirect' => $result['payment_url']
+                );
+            } else {
+                wc_add_notice('Payment Error: DeshiPay connection failed.', 'error');
+                return;
+            }
+        }
+
+        public function remote_api_request($data, $header) {
+            $headers = array(
+                'Content-Type' => 'application/json',
+                'API-KEY'      => $header['api'],
+            );
+
+            $response = wp_remote_post($header['url'], array(
+                'method'    => 'POST',
+                'body'      => json_encode($data),
+                'headers'   => $headers,
+                'timeout'   => 45,
+                'sslverify' => false
+            ));
+
+            if (is_wp_error($response)) {
+                return false;
+            }
+
+            return wp_remote_retrieve_body($response);
+        }
+
+        public function update_order_status($order) {
+            $transactionId = isset($_REQUEST['transactionId']) ? $_REQUEST['transactionId'] : '';
+            if (empty($transactionId)) return;
+
+            $data = array("transaction_id" => $transactionId);
+            $header = array(
+                "api" => $this->get_option('apikeys'),
+                "url" => trailingslashit($this->get_option('payment_site')) . "api/payment/verify"
+            );
+
+            $response = $this->remote_api_request($data, $header);
+            $res_data = json_decode($response, true);
+
+            if ($order->get_status() != 'completed' && isset($res_data['status'])) {
+                if ($res_data['status'] == "COMPLETED") {
+                    $trx = $res_data['transaction_id'];
+                    
+                    if ($this->get_option('is_digital') === 'yes') {
+                        $order->update_status('completed', __("DeshiPay payment completed. TRX: $trx", 'deshipay'));
+                    } else {
+                        $order->update_status('processing', __("DeshiPay payment processed. TRX: $trx", 'deshipay'));
+                    }
+                    $order->add_order_note(__('DeshiPay TRX ID: ' . $trx, 'deshipay'));
+                    $order->payment_complete($trx);
+                    return true;
+                } else {
+                    $order->update_status('on-hold', __('DeshiPay transaction verify failed.', 'deshipay'));
+                }
+            }
+        }
+
+        public function handle_webhook() {
+            $order_id = isset($_GET['order_id']) ? intval($_GET['order_id']) : 0;
+            $order = wc_get_order($order_id);
+            if ($order) {
+                $this->update_order_status($order);
+            }
+            status_header(200);
+            echo json_encode(['status' => 'success']);
+            exit();
+        }
+    }
+
+    function deshipay_add_gateway($gateways) {
+        $gateways[] = 'WC_DeshiPay_Gateway';
+        return $gateways;
+    }
+
+    add_filter('woocommerce_payment_gateways', 'deshipay_add_gateway');
+}
